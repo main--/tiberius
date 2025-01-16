@@ -31,10 +31,12 @@ pub struct Config {
     pub(crate) encryption: EncryptionLevel,
     pub(crate) trust: TrustConfig,
     pub(crate) auth: AuthMethod,
+    pub(crate) readonly: bool,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) enum TrustConfig {
+    #[allow(dead_code)]
     CaCertificateLocation(PathBuf),
     CaCertificateBundle(Vec<u8>),
     TrustAll,
@@ -63,6 +65,7 @@ impl Default for Config {
             encryption: EncryptionLevel::NotSupported,
             trust: TrustConfig::Default,
             auth: AuthMethod::None,
+            readonly: false,
         }
     }
 }
@@ -178,6 +181,13 @@ impl Config {
         self.auth = auth;
     }
 
+    /// Sets ApplicationIntent readonly.
+    ///
+    /// - Defaults to `false`.
+    pub fn readonly(&mut self, readnoly: bool) {
+        self.readonly = readnoly;
+    }
+
     pub(crate) fn get_host(&self) -> &str {
         self.host
             .as_deref()
@@ -273,6 +283,8 @@ impl Config {
         }
 
         builder.encryption(s.encrypt()?);
+
+        builder.readonly(s.readonly());
 
         Ok(builder)
     }
@@ -385,5 +397,12 @@ pub(crate) trait ConfigString {
                 "Connection string: Not a valid boolean".into(),
             )),
         }
+    }
+
+    fn readonly(&self) -> bool {
+        self.dict()
+            .get("applicationintent")
+            .filter(|val| *val == "ReadOnly")
+            .is_some()
     }
 }

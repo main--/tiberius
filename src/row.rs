@@ -13,6 +13,11 @@ pub struct Column {
 }
 
 impl Column {
+    /// Construct a new Column.
+    pub fn new(name: String, column_type: ColumnType) -> Self {
+        Self { name, column_type }
+    }
+
     /// The name of the column.
     pub fn name(&self) -> &str {
         &self.name
@@ -118,11 +123,21 @@ impl From<&TypeInfo> for ColumnType {
             },
             TypeInfo::VarLenSized(cx) => match cx.r#type() {
                 VarLenType::Guid => Self::Guid,
-                VarLenType::Intn => Self::Intn,
+                VarLenType::Intn => match cx.len() {
+                    1 => Self::Int1,
+                    2 => Self::Int2,
+                    4 => Self::Int4,
+                    8 => Self::Int8,
+                    _ => Self::Intn,
+                },
                 VarLenType::Bitn => Self::Bitn,
                 VarLenType::Decimaln => Self::Decimaln,
                 VarLenType::Numericn => Self::Numericn,
-                VarLenType::Floatn => Self::Floatn,
+                VarLenType::Floatn => match cx.len() {
+                    4 => Self::Float4,
+                    8 => Self::Float8,
+                    _ => Self::Floatn,
+                },
                 VarLenType::Money => Self::Money,
                 VarLenType::Datetimen => Self::Datetimen,
                 #[cfg(feature = "tds73")]
@@ -289,6 +304,11 @@ impl Row {
     /// ```
     pub fn columns(&self) -> &[Column] {
         &self.columns
+    }
+
+    /// Return an iterator over row column-value pairs.
+    pub fn cells(&self) -> impl Iterator<Item = (&Column, &ColumnData<'static>)> {
+        self.columns().iter().zip(self.data.iter())
     }
 
     /// The result set number, starting from zero and increasing if the stream
