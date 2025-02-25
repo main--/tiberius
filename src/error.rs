@@ -1,21 +1,17 @@
 //! Error module
 pub use crate::tds::codec::TokenError;
 pub use std::io::ErrorKind as IoErrorKind;
+use std::sync::Arc;
 use std::{borrow::Cow, convert::Infallible, io};
 use thiserror::Error;
 
 /// A unified error enum that contains several errors that might occurr during
 /// the lifecycle of this driver
-#[derive(Debug, Clone, Error, PartialEq, Eq)]
+#[derive(Debug, Clone, Error)]
 pub enum Error {
-    #[error("An error occured during the attempt of performing I/O: {}", message)]
+    #[error("An error occured during the attempt of performing I/O: {}", _0)]
     /// An error occured when performing I/O to the server.
-    Io {
-        /// A list specifying general categories of I/O error.
-        kind: IoErrorKind,
-        /// The error description.
-        message: String,
-    },
+    Io(Arc<io::Error>),
     #[error("Protocol error: {}", _0)]
     /// An error happened during the request or response parsing.
     Protocol(Cow<'static, str>),
@@ -109,10 +105,7 @@ impl From<Infallible> for Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
-        Self::Io {
-            kind: err.kind(),
-            message: format!("{}", err),
-        }
+        Error::Io(Arc::new(err))
     }
 }
 

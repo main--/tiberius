@@ -1,6 +1,6 @@
 use crate::{
     client::{config::Config, TrustConfig},
-    error::{Error, IoErrorKind},
+    error::Error,
 };
 pub(crate) use async_native_tls::TlsStream;
 use async_native_tls::{Certificate, TlsConnector};
@@ -29,18 +29,17 @@ pub(crate) async fn create_tls_stream<S: AsyncRead + AsyncWrite + Unpin + Send>(
                         Some(ext) if ext.to_ascii_lowercase() == "der" => {
                             Some(Certificate::from_der(&buf)?)
                         }
-                        Some(_) | None => return Err(Error::Io {
-                            kind: IoErrorKind::InvalidInput,
-                            message: "Provided CA certificate with unsupported file-extension! Supported types are pem, crt and der.".to_string()}),
+                        Some(_) | None => return Err(Error::Tls(
+                            "Provided CA certificate with unsupported file-extension! Supported types are pem, crt and der.".to_string()
+                        )),
                     };
                 if let Some(c) = cert {
                     builder = builder.add_root_certificate(c);
                 }
             } else {
-                return Err(Error::Io {
-                    kind: IoErrorKind::InvalidData,
-                    message: "Could not read provided CA certificate!".to_string(),
-                });
+                return Err(Error::Tls(
+                    "Could not read provided CA certificate!".to_string()
+                ));
             }
         }
         TrustConfig::CaCertificateBundle(bundle) => {

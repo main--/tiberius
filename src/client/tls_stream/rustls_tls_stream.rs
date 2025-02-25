@@ -1,6 +1,5 @@
 use crate::{
     client::{config::Config, TrustConfig},
-    error::IoErrorKind,
     Error,
 };
 use futures_util::io::{AsyncRead, AsyncWrite};
@@ -114,10 +113,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> TlsStream<S> {
                                 {
                                     let pem_cert = rustls_pemfile::certs(&mut buf.as_slice())?;
                                     if pem_cert.len() != 1 {
-                                        return Err(crate::Error::Io {
-                                            kind: IoErrorKind::InvalidInput,
-                                            message: format!("Certificate file {} contain 0 or more than 1 certs", path.to_string_lossy()),
-                                        });
+                                        return Err(crate::Error::Tls(
+                                            format!("Certificate file {} contain 0 or more than 1 certs", path.to_string_lossy())
+                                        ));
                                     }
 
                                     CertificateDer::from(pem_cert.into_iter().next().unwrap())
@@ -125,10 +123,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> TlsStream<S> {
                             Some(ext) if ext.to_ascii_lowercase() == "der" => {
                                 CertificateDer::from(buf)
                             }
-                            Some(_) | None => return Err(crate::Error::Io {
-                                kind: IoErrorKind::InvalidInput,
-                                message: "Provided CA certificate with unsupported file-extension! Supported types are pem, crt and der.".to_string(),
-                            }),
+                            Some(_) | None => return Err(crate::Error::Tls(
+                                "Provided CA certificate with unsupported file-extension! Supported types are pem, crt and der.".to_string(),
+                            )),
                         };
                     let mut cert_store = RootCertStore::empty();
                     cert_store.add(cert)?;
@@ -136,10 +133,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> TlsStream<S> {
                         .with_root_certificates(cert_store)
                         .with_no_client_auth()
                 } else {
-                    return Err(Error::Io {
-                        kind: IoErrorKind::InvalidData,
-                        message: "Could not read provided CA certificate!".to_string(),
-                    });
+                    return Err(Error::Tls(
+                        "Could not read provided CA certificate!".to_string(),
+                    ));
                 }
             }
             TrustConfig::CaCertificateBundle(bundle) => {
